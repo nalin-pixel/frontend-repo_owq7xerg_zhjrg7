@@ -1,18 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flames App</title>
-    <link rel="icon" type="image/x-icon" href="favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NovaAI — Premium AI Models & API Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%239b5ef7'/%3E%3Cstop offset='1' stop-color='%2300e0ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='128' cy='128' r='120' fill='url(%23g)'/%3E%3Cpath d='M88 142l24 24 56-76' stroke='white' stroke-width='18' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"/>
+
+  <!-- Spline Web Component for 3D scene -->
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.51/build/spline-viewer.js"></script>
+
+  <style>
+    :root {
+      --bg-start: #0a0b12;
+      --bg-end: #0b1224;
+      --glass-bg: rgba(255,255,255,0.06);
+      --glass-stroke: rgba(255,255,255,0.25);
+      --blur: 24px;
+      --text: #eaf2ff;
+      --muted: #a6b3c9;
+      --neon1: #6b9cff;
+      --neon2: #a06bff;
+      --neon3: #00e0ff;
+      --card: rgba(255,255,255,0.08);
+      --card-hover: rgba(255,255,255,0.14);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      --ease: cubic-bezier(.2,.8,.2,1);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: 'Manrope', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 20% -10%, rgba(96, 61, 255, 0.25), transparent 60%),
+                  radial-gradient(1000px 700px at 110% 10%, rgba(0, 216, 255, 0.18), transparent 60%),
+                  linear-gradient(140deg, var(--bg-start), var(--bg-end));
+      overflow-x: hidden;
+    }
+
+    /* Floating blurred shapes (soft neon) */
+    .blob { position: fixed; filter: blur(60px); opacity: 0.6; pointer-events: none; mix-blend-mode: screen;}
+    .blob.b1 { width: 50vmax; height: 50vmax; background: radial-gradient(circle at 30% 30%, var(--neon2), transparent 60%); top: -10vmax; left: -10vmax; animation: float 18s var(--ease) infinite alternate; }
+    .blob.b2 { width: 45vmax; height: 45vmax; background: radial-gradient(circle at 70% 30%, var(--neon3), transparent 60%); top: -15vmax; right: -10vmax; animation: float 22s var(--ease) infinite alternate-reverse; }
+    .blob.b3 { width: 60vmax; height: 60vmax; background: radial-gradient(circle at 40% 60%, var(--neon1), transparent 65%); bottom: -20vmax; left: 10vmax; animation: float 26s var(--ease) infinite alternate; opacity: .5; }
+    @keyframes float { from { transform: translate3d(0,0,0) } to { transform: translate3d(2%, -2%, 0) } }
+
+    /* Glassmorphism utilities */
+    .glass {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-stroke);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      box-shadow: var(--shadow);
+    }
+
+    /* Navbar */
+    .nav {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; justify-content: space-between;
+      width: min(1100px, 92%); padding: 14px 18px; border-radius: 16px; z-index: 50;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.3px; }
+    .brand-badge { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, var(--neon2), var(--neon3)); box-shadow: 0 0 30px rgba(96,61,255,.35), 0 0 60px rgba(0,224,255,.25) inset; }
+    .nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; margin: 0 10px; opacity: .9; }
+    .nav a:hover { color: #d9e6ff; }
+
+    .btn {
+      position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 12px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+      color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: .2px;
+      transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+      will-change: transform;
+    }
+    .btn:hover { transform: translateY(-2px) scale(1.02); background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06)); }
+    .btn.glow { box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 12px rgba(96,61,255,0.6), 0 0 32px rgba(0,224,255,0.35); }
+    .btn.primary { background: linear-gradient(135deg, rgba(160,107,255,.25), rgba(0,224,255,.15)); border-color: rgba(255,255,255,0.25); }
+
+    /* Hero */
+    .hero { position: relative; display: grid; place-items: center; padding: 160px 20px 120px; min-height: 100vh; }
+    .hero-inner { width: min(1100px, 92%); display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; }
+    .title { font-size: clamp(40px, 6vw, 74px); line-height: 1.03; margin: 0 0 16px; letter-spacing: -0.02em; text-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .subtitle { color: var(--muted); font-size: clamp(16px, 2.2vw, 20px); line-height: 1.65; margin: 0 0 28px; }
+    .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    .hero-card-wrap { perspective: 1200px; }
+    .hero-card { position: relative; border-radius: 22px; padding: 22px; overflow: hidden; transform-style: preserve-3d; }
+    .hero-card .inner { border-radius: 18px; overflow: hidden; height: 500px; position: relative; }
+
+    /* Spline container must be full size */
+    spline-viewer { width: 100%; height: 100%; display: block; }
+
+    .card-gloss { position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,.16), rgba(255,255,255,0) 35%); pointer-events: none; mix-blend-mode: overlay; }
+
+    /* Sections */
+    section { width: min(1100px, 92%); margin: 0 auto; padding: 40px 0 80px; }
+    .section-title { font-size: clamp(28px, 3.6vw, 40px); margin: 0 0 18px; text-align: center; }
+    .section-sub { color: var(--muted); text-align: center; margin: 0 auto 34px; max-width: 800px; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.features { grid-template-columns: repeat(4, 1fr); }
+    .grid.pricing { grid-template-columns: repeat(3, 1fr); }
+
+    .card { border-radius: var(--radius); padding: 22px; background: var(--card); border: 1px solid rgba(255,255,255,.18); box-shadow: var(--shadow); transition: transform .35s var(--ease), background .35s var(--ease), box-shadow .35s var(--ease); }
+    .card:hover { transform: translateY(-6px); background: var(--card-hover); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+    .card h3 { margin: 8px 0 6px; font-size: 18px; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.7; }
+
+    .price { font-size: 40px; font-weight: 800; margin: 6px 0 14px; letter-spacing: -0.02em; }
+    .price small { font-size: 14px; color: var(--muted); font-weight: 600; }
+
+    /* Footer */
+    footer { padding: 40px 0 80px; color: var(--muted); text-align: center; }
+    footer .row { display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+    /* Icons as tiny neon dots */
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, #9ecbff 35%, transparent 70%); box-shadow: 0 0 22px var(--neon1), 0 0 36px var(--neon3); display: inline-block; }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* Responsive */
+    @media (max-width: 980px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .nav { width: 94%; }
+      .grid.features { grid-template-columns: 1fr 1fr; }
+      .grid.pricing { grid-template-columns: 1fr; }
+      .hero-card .inner { height: 420px; }
+    }
+    @media (max-width: 560px) {
+      .grid.features { grid-template-columns: 1fr; }
+      .title { font-size: clamp(34px, 8vw, 54px); }
+      .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Neon floating blobs -->
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <!-- Floating Glass Navbar -->
+  <nav class="nav glass">
+    <div class="brand">
+      <div class="brand-badge"></div>
+      NovaAI
+    </div>
+    <div class="links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#docs">Docs</a>
+      <a href="#" class="btn glow" style="padding:8px 14px">Sign In</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="copy">
+        <h1 class="title reveal" style="transition-delay:.05s">Build with premium AI models.</h1>
+        <p class="subtitle reveal" style="transition-delay:.12s">State-of-the-art generation, embeddings, and tools wrapped in a delightful API. Provision API keys in seconds and scale with confidence.</p>
+        <div class="cta-row reveal" style="transition-delay:.18s">
+          <a class="btn glow primary" href="#pricing">Get Started</a>
+          <a class="btn glow" href="#docs">Explore the Docs</a>
+        </div>
+      </div>
+
+      <div class="hero-card-wrap reveal" style="transition-delay:.22s">
+        <div class="hero-card glass" id="parallaxCard">
+          <div class="inner">
+            <!-- Spline 3D scene as main object -->
+            <spline-viewer url="https://prod.spline.design/41MGRk-UDPKO-l6W/scene.splinecode"></spline-viewer>
+            <div class="card-gloss"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Features -->
+  <section id="features">
+    <h2 class="section-title reveal">Everything you need to ship AI faster</h2>
+    <p class="section-sub reveal">From blazing-fast inference to enterprise-grade controls, NovaAI gives you a powerful, secure foundation for building intelligent apps.</p>
+    <div class="grid features">
+      <div class="card glass reveal">
+        <span class="dot"></span>
+        <h3>Ultra-fast Inference</h3>
+        <p>Low-latency responses globally via edge-accelerated routing. Optimized for real-time UX.</p>
+      </div>
+      <div class="card glass reveal" style="transition-delay:.05s">
+        <span class="dot"></span>
+        <h3>Flexible Models</h3>
+        <p>Text, vision, and embeddings with consistent APIs. Swap models without changing code.</p>
+      </div>
+      <div class="card glass reveal" style="transition-delay:.1s">
+        <span class="dot"></span>
+        <h3>Observability</h3>
+        <p>Built-in analytics, usage caps, and logs. Track quality and cost in one place.</p>
+      </div>
+      <div class="card glass reveal" style="transition-delay:.15s">
+        <span class="dot"></span>
+        <h3>Enterprise Ready</h3>
+        <p>SOC2 controls, data residency, and role-based access to keep your org secure.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing">
+    <h2 class="section-title reveal">Simple, transparent pricing</h2>
+    <p class="section-sub reveal">Start free, then scale with predictable costs. Each plan includes API keys, analytics, and priority support.</p>
+
+    <div class="grid pricing">
+      <div class="card glass reveal">
+        <h3>Starter</h3>
+        <div class="price">$0 <small>/ mo</small></div>
+        <p>10k tokens/day, community support, and basic analytics.</p>
+        <div style="height:14px"></div>
+        <a class="btn glow" href="#">Start Free</a>
+      </div>
+
+      <div class="card glass reveal" style="transform: translateY(-4px);">
+        <h3>Pro</h3>
+        <div class="price">$39 <small>/ mo</small></div>
+        <p>Up to 10M tokens/mo, priority inference, and advanced monitoring.</p>
+        <div style="height:14px"></div>
+        <a class="btn glow primary" href="#">Upgrade</a>
+      </div>
+
+      <div class="card glass reveal">
+        <h3>Scale</h3>
+        <div class="price">Custom</div>
+        <p>Reserved capacity, enterprise SLAs, SSO, and dedicated support.</p>
+        <div style="height:14px"></div>
+        <a class="btn glow" href="#">Contact Sales</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer id="docs">
+    <div class="row reveal">
+      <span style="opacity:.8">© <span id="year"></span> NovaAI</span>
+      <span>•</span>
+      <a href="#features" style="color:inherit; text-decoration:none">Features</a>
+      <span>•</span>
+      <a href="#pricing" style="color:inherit; text-decoration:none">Pricing</a>
+      <span>•</span>
+      <a href="#" style="color:inherit; text-decoration:none">Status</a>
+    </div>
+  </footer>
+
+  <script>
+    // Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Parallax on hero card
+    const card = document.getElementById('parallaxCard');
+    const damp = (v, d=18) => v / d;
+    let bounds;
+    function handleMove(e) {
+      if (!bounds) bounds = card.getBoundingClientRect();
+      const cx = bounds.left + bounds.width / 2;
+      const cy = bounds.top + bounds.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const rx = damp(-dy, 12); // tilt X
+      const ry = damp(dx, 12);  // tilt Y
+      card.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+    }
+    function resetTilt() { card.style.transform = 'rotateX(0deg) rotateY(0deg)'; }
+    card.addEventListener('mousemove', handleMove);
+    card.addEventListener('mouseleave', resetTilt);
+
+    // Scroll reveal
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.18 });
+
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Subtle navbar reveal on scroll
+    const nav = document.querySelector('.nav');
+    let lastY = 0;
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      const up = y < lastY;
+      nav.style.transform = `translate(-50%, ${ up ? '0px' : '0px' })`;
+      nav.style.backdropFilter = `blur(${ Math.min(24, 8 + y/80) }px)`;
+      lastY = y;
+    });
+  </script>
+</body>
 </html>
